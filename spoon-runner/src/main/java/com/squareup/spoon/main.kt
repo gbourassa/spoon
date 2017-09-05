@@ -17,6 +17,7 @@ fun main(vararg args: String) {
     setInstrumentationArgs(cli.instrumentationArgs);
     cli.className?.let(this::setClassName)
     cli.methodName?.let(this::setMethodName)
+    cli.packageName?.let(this::setPackageName)
     cli.size?.let(this::setTestSize)
     cli.output?.let(this::setOutputDirectory)
     setAllowNoDevices(cli.allowNoDevices)

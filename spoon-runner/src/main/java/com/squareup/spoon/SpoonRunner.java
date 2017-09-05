@@ -6,6 +6,9 @@ import com.android.ddmlib.testrunner.ITestRunListener;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.squareup.spoon.html.HtmlRenderer;
+
+import org.apache.commons.io.FileUtils;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -19,13 +22,13 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.apache.commons.io.FileUtils;
+
+import javax.xml.parsers.ParserConfigurationException;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.squareup.spoon.DeviceTestResult.Status;
-import static com.squareup.spoon.SpoonInstrumentationInfo.parseFromFile;
 import static com.squareup.spoon.SpoonLogger.logDebug;
 import static com.squareup.spoon.SpoonLogger.logInfo;
 import static java.util.Collections.synchronizedSet;
@@ -52,6 +55,7 @@ public final class SpoonRunner {
   private final Set<String> skipDevices;
   private final boolean shard;
   private final IRemoteAndroidTestRunner.TestSize testSize;
+  private final String packageName;
   private boolean codeCoverage;
   private final boolean allowNoDevices;
   private final List<ITestRunListener> testRunListeners;
@@ -62,9 +66,9 @@ public final class SpoonRunner {
   private SpoonRunner(String title, File androidSdk, File testApk, List<File> otherApks,
       File output, boolean debug, boolean noAnimations, Duration adbTimeout, Set<String> serials,
       Set<String> skipDevices, boolean shard, List<String> instrumentationArgs, String className,
-      String methodName, IRemoteAndroidTestRunner.TestSize testSize, boolean allowNoDevices,
-      List<ITestRunListener> testRunListeners, boolean sequential, File initScript,
-      boolean grantAll, boolean terminateAdb, boolean codeCoverage) {
+      String methodName, String packageName, IRemoteAndroidTestRunner.TestSize testSize,
+      boolean allowNoDevices, List<ITestRunListener> testRunListeners, boolean sequential,
+      File initScript, boolean grantAll, boolean terminateAdb, boolean codeCoverage) {
     this.title = title;
     this.androidSdk = androidSdk;
     this.otherApks = otherApks;
@@ -76,6 +80,7 @@ public final class SpoonRunner {
     this.instrumentationArgs = instrumentationArgs;
     this.className = className;
     this.methodName = methodName;
+    this.packageName = packageName;
     this.testSize = testSize;
     this.skipDevices = skipDevices;
     this.codeCoverage = codeCoverage;
@@ -108,7 +113,12 @@ public final class SpoonRunner {
     AndroidDebugBridge adb = SpoonUtils.initAdb(androidSdk, adbTimeout);
 
     try {
-      final SpoonInstrumentationInfo testInfo = parseFromFile(testApk);
+      final SpoonInstrumentationInfo testInfo;
+      try {
+          testInfo = SpoonInstrumentationInfo.parseFromFile(testApk);
+      } catch (ParserConfigurationException exception) {
+          throw new RuntimeException("Error while parsing test APK file.", exception);
+      }
 
       // If we were given an empty serial set, load all available devices.
       Set<String> serials = this.serials;
@@ -284,8 +294,8 @@ public final class SpoonRunner {
   private SpoonDeviceRunner getTestRunner(String serial, int shardIndex, int numShards,
       SpoonInstrumentationInfo testInfo) {
     return new SpoonDeviceRunner(testApk, otherApks, output, serial, shardIndex, numShards, debug,
-        noAnimations, adbTimeout, testInfo, instrumentationArgs, className, methodName, testSize,
-        testRunListeners, codeCoverage, grantAll);
+        noAnimations, adbTimeout, testInfo, instrumentationArgs, className, methodName, packageName,
+        testSize, testRunListeners, codeCoverage, grantAll);
   }
 
   /** Build a test suite for the specified devices and configuration. */
@@ -301,6 +311,7 @@ public final class SpoonRunner {
     private List<String> instrumentationArgs;
     private String className;
     private String methodName;
+    private String packageName;
     private boolean noAnimations;
     private IRemoteAndroidTestRunner.TestSize testSize;
     private Duration adbTimeout = DEFAULT_ADB_TIMEOUT;
@@ -331,7 +342,7 @@ public final class SpoonRunner {
     /** Path to test APK. */
     public Builder setTestApk(File apk) {
       checkNotNull(apk, "Test APK path not specified.");
-      checkArgument(apk.exists(), "Test APK path does not exist.");
+      checkArgument(apk.exists(), "Test APK path does not exist: " + apk.getAbsolutePath());
       this.testApk = apk;
       return this;
     }
@@ -339,7 +350,7 @@ public final class SpoonRunner {
     /** Add an other APK path. */
     public Builder addOtherApk(File apk) {
       checkNotNull(apk, "APK path not specified.");
-      checkArgument(apk.exists(), "APK path does not exist.");
+      checkArgument(apk.exists(), "APK path does not exist: " + apk.getAbsolutePath());
       otherApks.add(apk);
       return this;
     }
@@ -427,6 +438,11 @@ public final class SpoonRunner {
       return this;
     }
 
+      public Builder setPackageName(String packageName) {
+          this.packageName = packageName;
+          return this;
+      }
+
     public Builder setCodeCoverage(boolean codeCoverage) {
       this.codeCoverage = codeCoverage;
       return this;
@@ -460,7 +476,7 @@ public final class SpoonRunner {
 
       return new SpoonRunner(title, androidSdk, testApk, otherApks, output, debug, noAnimations,
           adbTimeout, serials, skipDevices, shard, instrumentationArgs, className, methodName,
-          testSize, allowNoDevices, testRunListeners, sequential, initScript, grantAll,
+          packageName, testSize, allowNoDevices, testRunListeners, sequential, initScript, grantAll,
           terminateAdb, codeCoverage);
     }
   }

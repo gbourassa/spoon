@@ -25,6 +25,9 @@ internal class CliArgs(parser: ArgParser) {
   val methodName by parser.storing("--method-name", help = "Method name inside --class-name to run")
       .default(null)
 
+  val packageName by parser.storing("--package-name", help = "Package containing test classes to run")
+            .default(null)
+
   val size by parser.mapping(
       "--small" to TestSize.SMALL,
       "--medium" to TestSize.MEDIUM,

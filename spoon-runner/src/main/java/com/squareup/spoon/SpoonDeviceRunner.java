@@ -12,6 +12,10 @@ import com.android.ddmlib.testrunner.RemoteAndroidTestRunner;
 import com.android.ddmlib.testrunner.TestIdentifier;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.TrueFileFilter;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -24,8 +28,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.TrueFileFilter;
 
 import static com.android.ddmlib.FileListingService.FileEntry;
 import static com.android.ddmlib.SyncService.getNullProgressMonitor;
@@ -70,6 +72,7 @@ public final class SpoonDeviceRunner {
   private final File coverageDir;
   private final File fileDir;
   private final SpoonInstrumentationInfo instrumentationInfo;
+  private final String packageName;
   private boolean codeCoverage;
   private final List<ITestRunListener> testRunListeners;
   private final boolean grantAll;
@@ -92,8 +95,9 @@ public final class SpoonDeviceRunner {
   SpoonDeviceRunner(File testApk, List<File> otherApks, File output, String serial, int shardIndex,
       int numShards, boolean debug, boolean noAnimations, Duration adbTimeout,
       SpoonInstrumentationInfo instrumentationInfo, List<String> instrumentationArgs,
-      String className, String methodName, IRemoteAndroidTestRunner.TestSize testSize,
-      List<ITestRunListener> testRunListeners, boolean codeCoverage, boolean grantAll) {
+      String className, String methodName, String packageName,
+      IRemoteAndroidTestRunner.TestSize testSize, List<ITestRunListener> testRunListeners,
+      boolean codeCoverage, boolean grantAll) {
     this.testApk = testApk;
     this.otherApks = otherApks;
     this.serial = serial;
@@ -105,6 +109,7 @@ public final class SpoonDeviceRunner {
     this.instrumentationArgs = instrumentationArgs;
     this.className = className;
     this.methodName = methodName;
+    this.packageName = packageName;
     this.testSize = testSize;
     this.instrumentationInfo = instrumentationInfo;
     this.codeCoverage = codeCoverage;
@@ -212,6 +217,9 @@ public final class SpoonDeviceRunner {
         } else {
           runner.setMethodName(className, methodName);
         }
+      }
+      if (!isNullOrEmpty(packageName)){
+          runner.setTestPackageName(packageName);
       }
       if (testSize != null) {
         runner.setTestSize(testSize);
